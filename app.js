@@ -463,6 +463,7 @@ function clearLog() {
 }
 
 // Execute the gasless swap
+// Execute the gasless swap
 async function executeSwap() {
     if (!appState.web3 || !appState.currentAccount) {
         logEvent('Cannot execute swap: Wallet not connected', 'error');
@@ -507,7 +508,10 @@ async function executeSwap() {
         // Get token decimals and calculate token amount
         const sourceTokenInfo = config.TOKENS[sourceTokenSymbol];
         const sourceTokenDecimals = sourceTokenInfo.decimals;
+
+        // Calculate a buffer for gas fees (approximately 10% more)
         const sellAmount = Math.floor(amountUsd * Math.pow(10, sourceTokenDecimals));
+        const totalAmount = Math.floor(sellAmount * 1.1); // Add 10% buffer for gas fees
 
         // Get recipient address (default to current account if empty)
         let recipientAddress = document.getElementById('recipient-address').value.trim();
@@ -526,21 +530,10 @@ async function executeSwap() {
         logEvent(`Starting gasless swap process for ${amountUsd} USD worth of ${sourceTokenSymbol} to ${destinationTokenSymbol}`, 'info');
         document.getElementById('execute-swap').disabled = true;
 
-        // STEP 1: Get initial price (gas quote)
-        updateStatus('Step 1/5: Getting initial gas quote...');
-        const gasQuote = await getGasQuote(sourceChainId, sourceTokenAddress, destTokenAddress, sellAmount, appState.currentAccount);
+        // STEP 1: Get a firm quote for the swap directly
+        updateStatus('Step 1/3: Getting firm quote for the swap...');
+        logEvent(`Requesting quote for ${totalAmount / Math.pow(10, sourceTokenDecimals)} ${sourceTokenSymbol} (includes gas buffer)`, 'info');
 
-        // Assume gas fee from the quote
-        const gasFeeInSourceToken = Math.ceil(sellAmount * 0.1); // Assuming 10% for gas as per the example
-        logEvent(`Estimated gas cost: ${gasFeeInSourceToken / Math.pow(10, sourceTokenDecimals)} ${sourceTokenSymbol}`, 'info');
-
-        // STEP 2: Get a price quote with gas included
-        updateStatus('Step 2/5: Getting price quote with gas fee...');
-        const totalAmount = sellAmount + gasFeeInSourceToken;
-        const priceQuote = await getPriceQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
-
-        // STEP 3: Get a firm price quote for the swap
-        updateStatus('Step 3/5: Getting firm quote for the swap...');
         const firmQuote = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
 
         // Store quote data for later
@@ -548,8 +541,8 @@ async function executeSwap() {
 
         // Check if approval is needed
         if (firmQuote.approval && firmQuote.approval.signatureRequired) {
-            // STEP 4: Get approval signature
-            updateStatus('Step 4/5: Requesting token approval signature...');
+            // STEP 2: Get approval signature
+            updateStatus('Step 2/3: Requesting token approval signature...');
             logEvent('Token approval required. Please sign the approval in your wallet.', 'info');
 
             // Get EIP-3009 authorization signature
@@ -565,8 +558,8 @@ async function executeSwap() {
             logEvent('No additional token approval needed.', 'info');
         }
 
-        // STEP 5: Execute the swap
-        updateStatus('Step 5/5: Executing the swap...');
+        // STEP 3: Execute the swap
+        updateStatus('Step 3/3: Executing the swap...');
         const swapResult = await executeSwapTransaction(sourceChainId, firmQuote, appState.swapProcess.signature);
 
         // Handle swap result
@@ -593,34 +586,7 @@ async function executeSwap() {
     }
 }
 
-// STEP 1: Get gas quote
-async function getGasQuote(chainId, sellToken, buyToken, sellAmount, takerAddress) {
-    logEvent('Getting initial gas quote...', 'info');
-
-    try {
-        const url = `${config.PROXY_SERVER_URL}/gasless/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
-
-        const response = await axios.get(url, {
-            headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
-            }
-        });
-
-        if (response.data) {
-            logEvent('Received initial gas quote.', 'success');
-            console.log('Gas quote:', response.data);
-            return response.data;
-        } else {
-            throw new Error('No data received from gas quote endpoint');
-        }
-    } catch (error) {
-        console.error('Gas quote error:', error);
-        throw new Error(`Failed to get gas quote: ${error.response?.data?.message || error.message}`);
-    }
-}
-
-// STEP 2: Get a price quote with gas included
+// STEP 1: Get a price quote with gas included
 async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddress) {
     logEvent('Getting price quote with gas fee included...', 'info');
 
