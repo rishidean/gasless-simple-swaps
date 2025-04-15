@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,31 +29,31 @@
                         <!-- Will be populated by JavaScript -->
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="source-token">Source Token:</label>
                     <select id="source-token">
                         <!-- Will be populated based on source chain -->
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="destination-token">Destination Token:</label>
                     <select id="destination-token">
                         <!-- Will be populated based on source chain (same chain swap) -->
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="amount">Amount (USD):</label>
                     <input type="number" id="amount" min="0.01" step="0.01" value="1.00">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="recipient-address">Recipient Address:</label>
                     <input type="text" id="recipient-address" placeholder="0x...">
                 </div>
-                
+
                 <button id="execute-swap" class="swap-btn" disabled>Swap Gasless</button>
             </div>
 
@@ -85,7 +84,7 @@
                         <span class="debug-label">Tx Hash:</span>
                         <span id="debug-tx-hash">-</span>
                     </div>
-                    
+
                     <h3>Balance Tracking</h3>
                     <div class="debug-item">
                         <span class="debug-label">Source Token Before:</span>
@@ -135,5 +134,12 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="config.js"></script>
     <script src="app.js"></script>
+    <script>
+        // Check if config is loaded properly
+        if (typeof config === 'undefined') {
+            console.error('Config is not loaded properly');
+            alert('Error: Configuration not loaded properly. Please check the console for details.');
+        }
+    </script>
 </body>
 </html>

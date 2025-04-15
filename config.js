@@ -1,9 +1,6 @@
-
 // config.js - Configuration for the 0x Gasless Swap app
 
-// Load environment variables if needed
-require("dotenv").config();
-
+// Browser-compatible configuration
 const config = {
   // 0x API Configuration
   ZERO_X_API: {
@@ -195,15 +192,16 @@ const config = {
 
   getTokensForChain: function(chainName) {
     const tokensForChain = {};
-    
+
     for (const tokenSymbol in this.TOKENS) {
       if (this.TOKENS[tokenSymbol].addresses[chainName]) {
         tokensForChain[tokenSymbol] = this.TOKENS[tokenSymbol];
       }
     }
-    
+
     return tokensForChain;
   }
 };
 
-module.exports = config;
+// Make config available globally for browser
+window.config = config;
