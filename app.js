@@ -598,12 +598,12 @@ async function getGasQuote(chainId, sellToken, buyToken, sellAmount, takerAddres
     logEvent('Getting initial gas quote...', 'info');
 
     try {
-        const url = `${config.PROXY_SERVER_URL}/0x/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/gasless/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': 'v2'  // Ensure we're using the consistent version
+                '0x-version': config.ZERO_X_API.API_VERSION
             }
         });
 

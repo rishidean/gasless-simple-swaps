@@ -1,3 +1,4 @@
+
 // config.js - Configuration for the 0x Gasless Swap app
 
 // Browser-compatible configuration
@@ -173,6 +174,9 @@ const config = {
   DEFAULT_DESTINATION_CHAIN: "BASE",  // Same chain for gasless swaps
   DEFAULT_DESTINATION_TOKEN: "DAI",
 
+  // Proxy server URL for API requests
+  PROXY_SERVER_URL: "/api",
+
   // Utility functions
   getChainById: function(chainId) {
     for (const chain in this.CHAINS) {
@@ -202,9 +206,6 @@ const config = {
     return tokensForChain;
   }
 };
-
-// Proxy server URL for API requests
-  PROXY_SERVER_URL: "/api",
 
 // Make config available for both Node.js and browser environments
 if (typeof window !== 'undefined') {
