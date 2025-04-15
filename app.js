@@ -531,12 +531,12 @@ async function executeSwap() {
         document.getElementById('execute-swap').disabled = true;
 
         // STEP 1: Get the price (initial estimate)
-        updateStatus('Step 1/4: Getting price estimate...');
+        updateStatus('Step 1/5: Getting price estimate...');
         const priceQuote = await getPriceQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
         logEvent(`Received price estimate. Estimated output: ${priceQuote.buyAmount} ${destinationTokenSymbol}`, 'info');
 
         // STEP 2: Get the firm quote
-        updateStatus('Step 2/4: Getting firm quote for the swap...');
+        updateStatus('Step 2/5: Getting firm quote for the swap...');
         const firmQuote = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
 
         // Store quote data for later
@@ -544,7 +544,7 @@ async function executeSwap() {
         logEvent(`Firm quote received. Will sell ${firmQuote.sellAmount} ${sourceTokenSymbol} to buy ${firmQuote.buyAmount} ${destinationTokenSymbol}`, 'success');
 
         // STEP 3: Check for allowance and get signature if needed
-        updateStatus('Step 3/4: Checking token approval requirements...');
+        updateStatus('Step 3/5: Checking token approval requirements...');
 
         if (firmQuote.approval && firmQuote.approval.signatureRequired) {
             logEvent('Token approval required. Please sign the approval in your wallet.', 'info');
@@ -564,7 +564,7 @@ async function executeSwap() {
         }
 
         // STEP 4: Execute the swap
-        updateStatus('Step 4/4: Executing the swap...');
+        updateStatus('Step 4/5: Executing the swap...');
         const swapResult = await executeSwapTransaction(sourceChainId, firmQuote, appState.swapProcess.signature);
 
         // Handle swap result
@@ -595,7 +595,7 @@ async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddr
     logEvent('Getting price quote with gas fee included...', 'info');
 
     try {
-        const url = `${config.PROXY_SERVER_URL}/0x/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/gasless/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
@@ -617,12 +617,12 @@ async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddr
     }
 }
 
-// STEP 3: Get a firm quote for the swap
+// STEP 2: Get a firm quote for the swap
 async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddress) {
     logEvent('Getting firm quote for swap...', 'info');
 
     try {
-        const url = `${config.PROXY_SERVER_URL}/0x/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/gasless/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
@@ -766,7 +766,7 @@ async function getTokenInfo(tokenAddress) {
     }
 }
 
-// STEP 5: Execute the swap transaction
+// STEP 3: Execute the swap transaction
 async function executeSwapTransaction(chainId, quote, signature = null) {
     logEvent('Executing swap transaction...', 'info');
 
@@ -788,7 +788,7 @@ async function executeSwapTransaction(chainId, quote, signature = null) {
         }
 
         // Send the swap request
-        const response = await axios.post(`${config.PROXY_SERVER_URL}/0x/submit`, payload, {
+        const response = await axios.post(`${config.PROXY_SERVER_URL}/gasless/submit`, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 '0x-api-key': config.ZERO_X_API.API_KEY,
@@ -822,7 +822,7 @@ async function monitorSwapStatus(tradeHash) {
             attempts++;
 
             try {
-                const url = `${config.PROXY_SERVER_URL}/0x/status/${tradeHash}`;
+                const url = `${config.PROXY_SERVER_URL}/gasless/status/${tradeHash}`;
                 const response = await axios.get(url, {
                     headers: {
                         '0x-api-key': config.ZERO_X_API.API_KEY,
