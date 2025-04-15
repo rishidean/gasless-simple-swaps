@@ -508,9 +508,9 @@ async function executeSwap() {
         // Get token decimals and calculate token amount
         const sourceTokenInfo = config.TOKENS[sourceTokenSymbol];
         const sourceTokenDecimals = sourceTokenInfo.decimals;
+        const sellAmount = Math.floor(amountUsd * Math.pow(10, sourceTokenDecimals));
 
         // Calculate a buffer for gas fees (approximately 10% more)
-        const sellAmount = Math.floor(amountUsd * Math.pow(10, sourceTokenDecimals));
         const totalAmount = Math.floor(sellAmount * 1.1); // Add 10% buffer for gas fees
 
         // Get recipient address (default to current account if empty)
@@ -530,19 +530,23 @@ async function executeSwap() {
         logEvent(`Starting gasless swap process for ${amountUsd} USD worth of ${sourceTokenSymbol} to ${destinationTokenSymbol}`, 'info');
         document.getElementById('execute-swap').disabled = true;
 
-        // STEP 1: Get a firm quote for the swap directly
-        updateStatus('Step 1/3: Getting firm quote for the swap...');
-        logEvent(`Requesting quote for ${totalAmount / Math.pow(10, sourceTokenDecimals)} ${sourceTokenSymbol} (includes gas buffer)`, 'info');
+        // STEP 1: Get the price (initial estimate)
+        updateStatus('Step 1/4: Getting price estimate...');
+        const priceQuote = await getPriceQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
+        logEvent(`Received price estimate. Estimated output: ${priceQuote.buyAmount} ${destinationTokenSymbol}`, 'info');
 
+        // STEP 2: Get the firm quote
+        updateStatus('Step 2/4: Getting firm quote for the swap...');
         const firmQuote = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
 
         // Store quote data for later
         appState.swapProcess.quoteData = firmQuote;
+        logEvent(`Firm quote received. Will sell ${firmQuote.sellAmount} ${sourceTokenSymbol} to buy ${firmQuote.buyAmount} ${destinationTokenSymbol}`, 'success');
 
-        // Check if approval is needed
+        // STEP 3: Check for allowance and get signature if needed
+        updateStatus('Step 3/4: Checking token approval requirements...');
+
         if (firmQuote.approval && firmQuote.approval.signatureRequired) {
-            // STEP 2: Get approval signature
-            updateStatus('Step 2/3: Requesting token approval signature...');
             logEvent('Token approval required. Please sign the approval in your wallet.', 'info');
 
             // Get EIP-3009 authorization signature
@@ -554,12 +558,13 @@ async function executeSwap() {
             );
 
             appState.swapProcess.signature = signature;
+            logEvent('Approval signature obtained successfully.', 'success');
         } else {
             logEvent('No additional token approval needed.', 'info');
         }
 
-        // STEP 3: Execute the swap
-        updateStatus('Step 3/3: Executing the swap...');
+        // STEP 4: Execute the swap
+        updateStatus('Step 4/4: Executing the swap...');
         const swapResult = await executeSwapTransaction(sourceChainId, firmQuote, appState.swapProcess.signature);
 
         // Handle swap result
@@ -585,7 +590,6 @@ async function executeSwap() {
         document.getElementById('execute-swap').disabled = false;
     }
 }
-
 // STEP 1: Get a price quote with gas included
 async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddress) {
     logEvent('Getting price quote with gas fee included...', 'info');

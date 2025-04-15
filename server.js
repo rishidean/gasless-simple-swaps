@@ -12,6 +12,7 @@ const app = express();
 
 // Port configuration
 const PORT = process.env.PORT || 3000;
+const ALTERNATIVE_PORT = 5000; // Use this if default port is taken
 
 // Enable CORS for all routes
 app.use(cors());
@@ -111,8 +112,18 @@ app.get('/api/gasless/status/:tradeHash', async (req, res) => {
     }
 });
 
-// Start the server
-app.listen(PORT, () => {
+// Start the server with fallback to alternative port
+const server = app.listen(PORT, () => {
     console.log(`0x Gasless Swap server running on port ${PORT}`);
     console.log(`Open in your browser: http://localhost:${PORT}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${PORT} is busy, trying alternative port ${ALTERNATIVE_PORT}`);
+        app.listen(ALTERNATIVE_PORT, () => {
+            console.log(`0x Gasless Swap server running on port ${ALTERNATIVE_PORT}`);
+            console.log(`Open in your browser: http://localhost:${ALTERNATIVE_PORT}`);
+        });
+    } else {
+        console.error('Server error:', err);
+    }
 });
