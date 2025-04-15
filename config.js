@@ -203,5 +203,9 @@ const config = {
   }
 };
 
-// Make config available globally for browser
-window.config = config;
+// Make config available for both Node.js and browser environments
+if (typeof window !== 'undefined') {
+  window.config = config;
+} else {
+  module.exports = config;
+}
