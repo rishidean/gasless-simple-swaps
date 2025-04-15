@@ -598,7 +598,7 @@ async function getGasQuote(chainId, sellToken, buyToken, sellAmount, takerAddres
     logEvent('Getting initial gas quote...', 'info');
 
     try {
-        const url = `${config.ZERO_X_API.PRICE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/0x/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
@@ -625,7 +625,7 @@ async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddr
     logEvent('Getting price quote with gas fee included...', 'info');
 
     try {
-        const url = `${config.ZERO_X_API.PRICE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/0x/price?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
@@ -652,7 +652,7 @@ async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddre
     logEvent('Getting firm quote for swap...', 'info');
 
     try {
-        const url = `${config.ZERO_X_API.QUOTE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/0x/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
@@ -818,7 +818,7 @@ async function executeSwapTransaction(chainId, quote, signature = null) {
         }
 
         // Send the swap request
-        const response = await axios.post(config.ZERO_X_API.SUBMIT_URL, payload, {
+        const response = await axios.post(`${config.PROXY_SERVER_URL}/0x/submit`, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 '0x-api-key': config.ZERO_X_API.API_KEY,
@@ -852,7 +852,7 @@ async function monitorSwapStatus(tradeHash) {
             attempts++;
 
             try {
-                const url = `${config.ZERO_X_API.STATUS_URL}/${tradeHash}`;
+                const url = `${config.PROXY_SERVER_URL}/0x/status/${tradeHash}`;
                 const response = await axios.get(url, {
                     headers: {
                         '0x-api-key': config.ZERO_X_API.API_KEY,
@@ -864,7 +864,7 @@ async function monitorSwapStatus(tradeHash) {
                     logEvent(`Status update (attempt ${attempts}): ${response.data.status}`, 'info');
                     console.log('Status response:', response.data);
 
-                    if (response.data.status === 'success') {
+                    if (response.data.status ==='success') {
                         // Transaction confirmed
                         updateStatus('Swap completed successfully!');
                         logEvent('Swap transaction confirmed and successful!', 'success');
