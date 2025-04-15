@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0x Gasless Swap Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>0x Gasless Swap Demo</h1>
+        <button id="connect-wallet" class="connect-btn">Connect Wallet</button>
+    </header>
+
+    <main>
+        <section class="swap-container">
+            <div class="status-panel">
+                <h2>Status</h2>
+                <div id="status-display">
+                    <p>Ready to connect wallet</p>
+                </div>
+            </div>
+
+            <div class="swap-form">
+                <h2>Swap Details</h2>
+                <div class="form-group">
+                    <label for="source-chain">Source Chain:</label>
+                    <select id="source-chain">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="source-token">Source Token:</label>
+                    <select id="source-token">
+                        <!-- Will be populated based on source chain -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="destination-token">Destination Token:</label>
+                    <select id="destination-token">
+                        <!-- Will be populated based on source chain (same chain swap) -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">Amount (USD):</label>
+                    <input type="number" id="amount" min="0.01" step="0.01" value="1.00">
+                </div>
+                
+                <div class="form-group">
+                    <label for="recipient-address">Recipient Address:</label>
+                    <input type="text" id="recipient-address" placeholder="0x...">
+                </div>
+                
+                <button id="execute-swap" class="swap-btn" disabled>Swap Gasless</button>
+            </div>
+
+            <div class="debug-panel">
+                <h2>Debug Information</h2>
+                <div id="debug-info">
+                    <div class="debug-item">
+                        <span class="debug-label">Wallet Address:</span>
+                        <span id="wallet-address">Not connected</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Source Chain/Token:</span>
+                        <span id="debug-source">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Destination Chain/Token:</span>
+                        <span id="debug-destination">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Amount (Fiat):</span>
+                        <span id="debug-amount-fiat">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Amount (Token):</span>
+                        <span id="debug-amount-token">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Tx Hash:</span>
+                        <span id="debug-tx-hash">-</span>
+                    </div>
+                    
+                    <h3>Balance Tracking</h3>
+                    <div class="debug-item">
+                        <span class="debug-label">Source Token Before:</span>
+                        <span id="debug-source-before">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Source Token After:</span>
+                        <span id="debug-source-after">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Source Token Change:</span>
+                        <span id="debug-source-change">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Gas Token Before:</span>
+                        <span id="debug-gas-before">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Gas Token After:</span>
+                        <span id="debug-gas-after">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Gas Token Change:</span>
+                        <span id="debug-gas-change">-</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Gasless Verified:</span>
+                        <span id="debug-gasless-verified">-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="event-log">
+            <div class="log-header">
+                <h2>Event Log</h2>
+                <button id="copy-log" class="copy-btn">Copy Log</button>
+                <button id="clear-log" class="clear-btn">Clear Log</button>
+            </div>
+            <div id="log-container">
+                <!-- Events will be logged here -->
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

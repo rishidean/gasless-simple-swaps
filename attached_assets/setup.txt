@@ -1,0 +1,190 @@
+# Detailed Setup Instructions
+
+This document provides comprehensive step-by-step instructions for setting up the 0x Gasless Swap Demo application.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v14 or later)
+- **npm** (usually comes with Node.js) or **yarn**
+- **Git** (for cloning the repository)
+- **MetaMask** browser extension
+- A text editor or IDE (like Visual Studio Code, Sublime Text, etc.)
+
+## Environment Setup
+
+### 1. Setting Up Replit
+
+If you're using Replit for this project, follow these steps:
+
+1. Go to [Replit](https://replit.com/) and sign up or sign in
+2. Click on "+ Create Repl" or "+ New Repl"
+3. Select "Node.js" as the template
+4. Give your Repl a name (e.g., "0x-gasless-swap-demo")
+5. Click "Create Repl"
+
+### 2. Setting Up Your Local Environment (Alternative to Replit)
+
+If you prefer to work locally:
+
+1. Open a terminal or command prompt
+2. Navigate to the directory where you want to set up the project
+3. Run `mkdir 0x-gasless-swap-demo && cd 0x-gasless-swap-demo` to create and enter a new project folder
+
+### 3. Cloning the Repository from GitHub
+
+If you're using a GitHub repository:
+
+1. Open a terminal in your Replit workspace or local environment
+2. Run `git clone https://github.com/your-username/0x-gasless-swap-demo.git .` (replace with your actual GitHub repo URL)
+3. If prompted, enter your GitHub credentials
+
+### 4. Setting Up the Project Manually
+
+If you're not using a GitHub repository:
+
+1. Create the project structure with the following files:
+   - `index.html`
+   - `styles.css`
+   - `app.js`
+   - `config.js`
+   - `server.js`
+   - `package.json`
+
+2. Copy the code for each file from the provided source files
+
+### 5. Installing Dependencies
+
+1. In your terminal, ensure you're in the project root directory
+2. Create a `package.json` file if it doesn't exist by running `npm init -y`
+3. Install required dependencies by running:
+   ```
+   npm install express cors dotenv axios
+   ```
+   or if you use yarn:
+   ```
+   yarn add express cors dotenv axios
+   ```
+
+4. For development dependencies (optional):
+   ```
+   npm install --save-dev nodemon
+   ```
+   or:
+   ```
+   yarn add --dev nodemon
+   ```
+
+5. Update your `package.json` to include start scripts:
+   ```json
+   "scripts": {
+     "start": "node server.js",
+     "dev": "nodemon server.js"
+   }
+   ```
+
+## Configuration
+
+### 1. Setting Up Environment Variables
+
+1. Create a `.env` file in the project root
+2. Add the following variables (replace with your actual values):
+   ```
+   PORT=3000
+   ```
+
+### 2. Configuring the 0x API Key
+
+1. Open `config.js`
+2. Ensure the 0x API key is set correctly:
+   ```javascript
+   API_KEY: "ccaea9d8-cafa-4dcd-b6d5-3c95ae15538f"
+   ```
+
+### 3. MetaMask Setup
+
+1. Install the MetaMask extension in your browser if you haven't already
+2. Create a new wallet or import an existing one
+3. Add test networks to MetaMask if needed:
+   - Go to Settings > Networks > Add Network
+   - Add networks like Base, Polygon, etc. with their respective RPCs
+4. Fund your wallet with test tokens for the network you want to test
+
+## Running the Application
+
+### 1. Starting the Server
+
+In Replit:
+1. Click the "Run" button, or
+2. Open the Shell and type `npm start`
+
+Locally:
+1. Open a terminal in your project directory
+2. Run `npm start` or `npm run dev` (if you want to use nodemon for auto-restart)
+
+### 2. Accessing the Application
+
+- If using Replit, your app will be available at the URL provided by Replit
+- If running locally, open your browser and go to `http://localhost:3000`
+
+## Testing the Application
+
+1. Connect your MetaMask wallet by clicking the "Connect Wallet" button
+2. Select the source chain from the dropdown
+3. Select the source token and destination token
+4. Enter the amount to swap
+5. Enter the recipient address (or leave it as default to use your own wallet)
+6. Click "Swap Gasless" to initiate the transaction
+7. Follow the prompts in MetaMask to approve the transaction
+8. Monitor the transaction status in the application
+
+## Troubleshooting
+
+### MetaMask Connection Issues
+
+- Ensure MetaMask is unlocked
+- Make sure you're on the correct network
+- Try refreshing the page
+- Check browser console for errors
+
+### Transaction Failures
+
+- Check that you have sufficient token balance
+- Verify that the token contract supports EIP-3009 (required for gasless transactions)
+- Confirm your MetaMask network matches the selected source chain
+- Look at the detailed event log for specific errors
+
+## Using AI for Debugging
+
+If you encounter issues, you can use AI (like Claude) to help debug:
+
+1. Copy the relevant error messages from the console or Event Log
+2. Take screenshots of the application state when the error occurs
+3. Provide the AI with:
+   - The specific error message
+   - What you were trying to do when the error occurred
+   - Any relevant information from the Event Log
+   - Your current application state (chain, tokens, amounts)
+
+Example query for AI: "I'm getting the following error in my 0x Gasless Swap app: [error message]. I was trying to swap USDC to DAI on Base. Here's the event log: [paste log]. What might be causing this and how can I fix it?"
+
+## Making Changes and Retesting
+
+To modify and test changes to the application:
+
+1. Edit the relevant files:
+   - `index.html` for HTML structure
+   - `styles.css` for styling
+   - `app.js` for client-side logic
+   - `config.js` for configuration
+   - `server.js` for server-side logic
+
+2. If using `nodemon` (development mode), changes will automatically reload
+3. If not, restart the server with `npm start` after changes
+4. Refresh your browser to see the changes
+
+In Replit:
+1. Make your changes
+2. Stop the current run
+3. Click "Run" again to restart with your changes
