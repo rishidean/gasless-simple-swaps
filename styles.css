@@ -1,0 +1,224 @@
+
+/* Global styles */
+:root {
+    --primary-color: #6366f1;
+    --secondary-color: #4f46e5;
+    --background-color: #f3f4f6;
+    --panel-color: #ffffff;
+    --text-color: #111827;
+    --border-color: #e5e7eb;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --error-color: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background-color: var(--panel-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2, h3 {
+    margin-bottom: 15px;
+}
+
+/* Buttons */
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.connect-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.swap-btn {
+    background-color: var(--secondary-color);
+    color: white;
+    width: 100%;
+    padding: 12px;
+    margin-top: 15px;
+}
+
+.swap-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.copy-btn, .clear-btn {
+    background-color: var(--panel-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    margin-left: 10px;
+}
+
+button:hover:not(:disabled) {
+    filter: brightness(110%);
+}
+
+/* Form elements */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+select, input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+/* Layout */
+main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+@media (min-width: 992px) {
+    main {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+/* Panels */
+.swap-container, .event-log {
+    background-color: var(--panel-color);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.status-panel, .swap-form, .debug-panel {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+/* Event log */
+.event-log {
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.log-header h2 {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+#log-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    background-color: #f8fafc;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.log-timestamp {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.log-info {
+    color: #3b82f6;
+}
+
+.log-success {
+    color: var(--success-color);
+}
+
+.log-warning {
+    color: var(--warning-color);
+}
+
+.log-error {
+    color: var(--error-color);
+}
+
+/* Debug panel */
+.debug-item {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.debug-label {
+    font-weight: 600;
+    min-width: 170px;
+}
+
+#wallet-address, #debug-tx-hash {
+    color: #3b82f6;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Status display */
+#status-display {
+    padding: 10px;
+    background-color: #f8fafc;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .debug-item {
+        flex-direction: column;
+    }
+
+    .debug-label {
+        margin-bottom: 3px;
+    }
+}
