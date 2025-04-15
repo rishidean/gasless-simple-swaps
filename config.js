@@ -203,6 +203,9 @@ const config = {
   }
 };
 
+// Proxy server URL for API requests
+  PROXY_SERVER_URL: "/api",
+
 // Make config available for both Node.js and browser environments
 if (typeof window !== 'undefined') {
   window.config = config;
