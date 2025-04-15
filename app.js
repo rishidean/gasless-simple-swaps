@@ -599,12 +599,15 @@ async function getGasQuote(chainId, sellToken, buyToken, sellAmount, takerAddres
     logEvent('Getting initial gas quote...', 'info');
     
     try {
-        const url = `${config.ZERO_X_API.PRICE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `/api/gasless/price`;
         
         const response = await axios.get(url, {
-            headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
+            params: {
+                chainId,
+                sellToken,
+                buyToken,
+                sellAmount,
+                taker: takerAddress
             }
         });
         
@@ -617,7 +620,7 @@ async function getGasQuote(chainId, sellToken, buyToken, sellAmount, takerAddres
         }
     } catch (error) {
         console.error('Gas quote error:', error);
-        throw new Error(`Failed to get gas quote: ${error.response?.data?.message || error.message}`);
+        throw new Error(`Failed to get gas quote: ${error.response?.data?.error || error.message}`);
     }
 }
 
@@ -626,12 +629,15 @@ async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddr
     logEvent('Getting price quote with gas fee included...', 'info');
     
     try {
-        const url = `${config.ZERO_X_API.PRICE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `/api/gasless/price`;
         
         const response = await axios.get(url, {
-            headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
+            params: {
+                chainId,
+                sellToken,
+                buyToken,
+                sellAmount,
+                taker: takerAddress
             }
         });
         
@@ -644,7 +650,7 @@ async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddr
         }
     } catch (error) {
         console.error('Price quote error:', error);
-        throw new Error(`Failed to get price quote: ${error.response?.data?.message || error.message}`);
+        throw new Error(`Failed to get price quote: ${error.response?.data?.error || error.message}`);
     }
 }
 
@@ -653,12 +659,15 @@ async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddre
     logEvent('Getting firm quote for swap...', 'info');
     
     try {
-        const url = `${config.ZERO_X_API.QUOTE_URL}?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `/api/gasless/quote`;
         
         const response = await axios.get(url, {
-            headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
+            params: {
+                chainId,
+                sellToken,
+                buyToken,
+                sellAmount,
+                taker: takerAddress
             }
         });
         
@@ -677,7 +686,7 @@ async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddre
         }
     } catch (error) {
         console.error('Firm quote error:', error);
-        throw new Error(`Failed to get firm quote: ${error.response?.data?.message || error.message}`);
+        throw new Error(`Failed to get firm quote: ${error.response?.data?.error || error.message}`);
     }
 }
 
@@ -819,10 +828,9 @@ async function executeSwapTransaction(chainId, quote, signature = null) {
         }
         
         // Send the swap request
-        const response = await axios.post(config.ZERO_X_API.SUBMIT_URL, payload, {
+        const response = await axios.post('/api/gasless/submit', payload, {
             headers: {
-                'Content-Type': 'application/json',
-                '0x-api-key': config.ZERO_X_API.API_KEY
+                'Content-Type': 'application/json'
             }
         });
         
@@ -834,7 +842,7 @@ async function executeSwapTransaction(chainId, quote, signature = null) {
         }
     } catch (error) {
         console.error('Swap execution error:', error);
-        throw new Error(`Failed to execute swap: ${error.response?.data?.message || error.message}`);
+        throw new Error(`Failed to execute swap: ${error.response?.data?.error || error.message}`);
     }
 }
 
@@ -852,12 +860,8 @@ async function monitorSwapStatus(tradeHash) {
             attempts++;
             
             try {
-                const url = `${config.ZERO_X_API.STATUS_URL}/${tradeHash}`;
-                const response = await axios.get(url, {
-                    headers: {
-                        '0x-api-key': config.ZERO_X_API.API_KEY
-                    }
-                });
+                const url = `/api/gasless/status/${tradeHash}`;
+                const response = await axios.get(url);
                 
                 if (response.data) {
                     logEvent(`Status update (attempt ${attempts}): ${response.data.status}`, 'info');
