@@ -907,11 +907,11 @@ async function monitorSwapStatus(tradeHash) {
             logEvent(`Checking status (attempt ${attempts})...`, 'info');
 
             try {
-                const url = `${config.PROXY_SERVER_URL}/status/${tradeHash}`;
+                const url = `${config.PROXY_SERVER_URL}/gasless/status/${tradeHash}`;
                 const response = await axios.get(url, {
                     headers: {
                         '0x-api-key': config.ZERO_X_API.API_KEY,
-                        '0x-version': 'v2'
+                        '0x-version': config.ZERO_X_API.API_VERSION
                     }
                 });
 
