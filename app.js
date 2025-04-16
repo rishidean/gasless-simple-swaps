@@ -641,12 +641,12 @@ async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddre
     logEvent('Getting firm quote for swap...', 'info');
 
     try {
-        const url = `${config.ZERO_X_API.BASE_URL}/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.PROXY_SERVER_URL}/gasless/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': 'v2'
+                '0x-version': config.ZERO_X_API.API_VERSION
             }
         });
 
@@ -790,6 +790,7 @@ async function executeSwapTransaction(chainId, quoteResponse, tradeSignature, ap
 
         // Prepare the request payload
         const payload = {
+            chainId: Number(chainId),
             trade: {
                 type: quoteResponse.trade.type,
                 eip712: quoteResponse.trade.eip712,
@@ -821,17 +822,46 @@ async function executeSwapTransaction(chainId, quoteResponse, tradeSignature, ap
         console.log('Submit payload:', JSON.stringify(payload, null, 2));
 
         // Send the swap request
-        const response = await axios.post(`${config.ZERO_X_API.BASE_URL}/submit`, payload, {
+        const response = await axios.post(`${config.PROXY_SERVER_URL}/gasless/submit`, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': 'v2'
+                '0x-version': config.ZERO_X_API.API_VERSION
             }
         });
 
-        if (response.data && response.data.hash) {
-            logEvent(`Swap transaction submitted with hash: ${response.data.hash}`, 'success');
-            return response.data;
+        // Check for either hash or tradeHash in the response
+        if (response.data && (response.data.hash || response.data.tradeHash)) {
+            // Use whichever hash exists
+            const txHash = response.data.hash || response.data.tradeHash;
+            logEvent(`Swap transaction submitted with hash: ${txHash}`, 'success');
+            updateStatus('Swap submitted successfully. Waiting for confirmation...');
+            document.getElementById('debug-tx-hash').textContent = txHash;
+            document.getElementById('debug-tx-hash').onclick = () => {
+                const sourceChainId = document.getElementById('source-chain').value;
+                const sourceChain = config.getChainById(sourceChainId);
+                if (sourceChain) {
+                    window.open(`${sourceChain.explorerUrl}/tx/${txHash}`, '_blank');
+                }
+            };
+
+            // Return the data FIRST, then start monitoring
+            const result = {
+                ...response.data,
+                hash: txHash
+            };
+
+            // Start monitoring the transaction status separately
+            // This ensures we don't block the function return
+            setTimeout(() => {
+                monitorSwapStatus(txHash)
+                    .catch(err => {
+                        console.error('Error in status monitoring:', err);
+                        logEvent(`Monitoring error: ${err.message}`, 'error');
+                    });
+            }, 1000);
+
+            return result;
         } else {
             throw new Error('No transaction hash received from submit endpoint');
         }
@@ -862,8 +892,9 @@ function splitSignature(signature) {
 }
 
 // Monitor the status of the swap transaction
+// Monitor the status of the swap transaction
 async function monitorSwapStatus(tradeHash) {
-    logEvent('Monitoring swap transaction status...', 'info');
+    logEvent(`Monitoring transaction status for hash: ${tradeHash}`, 'info');
     updateStatus('Monitoring transaction status...');
 
     try {
@@ -873,21 +904,23 @@ async function monitorSwapStatus(tradeHash) {
 
         const checkStatus = async () => {
             attempts++;
+            logEvent(`Checking status (attempt ${attempts})...`, 'info');
 
             try {
-                const url = `${config.PROXY_SERVER_URL}/gasless/status/${tradeHash}`;
+                const url = `${config.PROXY_SERVER_URL}/status/${tradeHash}`;
                 const response = await axios.get(url, {
                     headers: {
                         '0x-api-key': config.ZERO_X_API.API_KEY,
-                        '0x-version': 'v2'  // Add the version header here too
+                        '0x-version': 'v2'
                     }
                 });
 
                 if (response.data) {
-                    logEvent(`Status update (attempt ${attempts}): ${response.data.status}`, 'info');
+                    const status = response.data.status || 'unknown';
+                    logEvent(`Status update (attempt ${attempts}): ${status}`, 'info');
                     console.log('Status response:', response.data);
 
-                    if (response.data.status ==='success') {
+                    if (status === 'success') {
                         // Transaction confirmed
                         updateStatus('Swap completed successfully!');
                         logEvent('Swap transaction confirmed and successful!', 'success');
@@ -898,14 +931,17 @@ async function monitorSwapStatus(tradeHash) {
                         // Re-enable the swap button
                         document.getElementById('execute-swap').disabled = false;
                         return;
-                    } else if (response.data.status === 'failed') {
+                    } else if (status === 'failed') {
                         // Transaction failed
-                        updateStatus(`Swap failed: ${response.data.error || 'Unknown error'}`);
-                        logEvent(`Swap transaction failed: ${response.data.error || 'Unknown error'}`, 'error');
+                        const errorMsg = response.data.error || 'Unknown error';
+                        updateStatus(`Swap failed: ${errorMsg}`);
+                        logEvent(`Swap transaction failed: ${errorMsg}`, 'error');
 
                         // Re-enable the swap button
                         document.getElementById('execute-swap').disabled = false;
                         return;
+                    } else if (status === 'pending') {
+                        logEvent(`Transaction is still pending. Waiting...`, 'info');
                     } else if (attempts >= maxAttempts) {
                         // Max attempts reached
                         updateStatus('Monitoring timeout. Check explorer for latest status.');
