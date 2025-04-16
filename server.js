@@ -95,23 +95,47 @@ app.post('/api/gasless/submit', async (req, res) => {
 });
 
 // Proxy route for 0x API status
-app.get('/api/gasless/status/:tradeHash', async (req, res) => {
-    try {
-        const url = `${config.ZERO_X_API.STATUS_URL}/${req.params.tradeHash}`;
-        const response = await axios.get(url, {
-            headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
-            }
-        });
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error proxying to 0x status API:', error.message);
-        res.status(error.response?.status || 500).json({
-            error: error.response?.data || error.message
-        });
+try {
+    // Get tradeHash from URL path
+    const tradeHash = req.params.tradeHash;
+    // Get chainId specifically from query parameters sent by app.js
+    const chainId = req.query.chainId;
+
+    // Basic validation for chainId received by the proxy
+    if (!chainId || isNaN(Number(chainId))) {
+        console.error(`[Proxy Error] Invalid or missing chainId received in query:`, req.query);
+        return res.status(400).json({
+             message: "Bad request to proxy: Missing or invalid chainId query parameter."
+         });
     }
-});
+
+    // Construct the final URL for the 0x API
+    const url = `${config.ZERO_X_API.STATUS_URL}/${tradeHash}`;
+
+    // Prepare the parameters object explicitly for the 0x API call
+    const apiParams = {
+        chainId: Number(chainId) // Ensure it's passed as a number if needed, though Axios usually handles string conversion
+    };
+
+    console.log(`Proxying to 0x Status API: ${url} with explicit params:`, apiParams); // Log what we're sending
+
+    // Forward the request to the 0x API with only the necessary params
+    const response = await axios.get(url, {
+        params: apiParams, // <<< Use the explicitly created params object
+        headers: {
+            '0x-api-key': config.ZERO_X_API.API_KEY,
+            '0x-version': config.ZERO_X_API.API_VERSION
+        }
+    });
+    res.json(response.data);
+} catch (error) {
+    // Log the specific error received from 0x API if available
+    console.error(`[Proxy Error] Error proxying to 0x status API (${error.response?.status}):`, error.response ? error.response.data : error.message);
+    res.status(error.response?.status || 500).json({
+        message: "Failed to fetch status from 0x API via proxy.",
+        details: error.response?.data || { message: error.message } // Provide more detail if possible
+    });
+}
 
 // Start the server with fallback to alternative port
 const server = app.listen(PORT, () => {

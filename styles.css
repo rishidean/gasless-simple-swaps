@@ -3,20 +3,21 @@
 :root {
     --primary-color: #6366f1;
     --secondary-color: #4f46e5;
-    --background-color: #f3f4f6;
+    --background-color: #f8fafc;
     --panel-color: #ffffff;
-    --text-color: #111827;
+    --text-color: #1f2937; 
     --border-color: #e5e7eb;
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
+    --light-gray: #f3f4f6; 
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Satoshi', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
@@ -147,7 +148,7 @@ main {
 #log-container {
     flex-grow: 1;
     overflow-y: auto;
-    background-color: #f8fafc;
+    background-color: var(--light-gray);
     padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 5px;
@@ -202,7 +203,7 @@ main {
 /* Status display */
 #status-display {
     padding: 10px;
-    background-color: #f8fafc;
+    background-color: var(--light-gray); 
     border-radius: 5px;
     border: 1px solid var(--border-color);
 }
@@ -214,11 +215,74 @@ main {
         gap: 10px;
     }
 
-    .debug-item {
-        flex-direction: column;
+    /* Debug panel Grid Layout */
+    .debug-grid {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 20px; /* Space below grid */
+    }
+
+    /* Default grid - 2 columns for general info */
+    .debug-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive columns */
+    }
+
+    /* Grid for balance table - 4 columns */
+    .balance-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        align-items: center; /* Center items vertically */
+    }
+
+    .debug-box {
+        background-color: var(--light-gray);
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        font-size: 0.9rem;
+        display: flex; /* Use flex for alignment within box */
+        flex-direction: column; /* Stack label and value */
+    }
+
+    .debug-box.header {
+        font-weight: 600;
+        background-color: #e5e7eb; /* Slightly darker header */
+        text-align: center;
+    }
+
+    .debug-box.label-col {
+        font-weight: 600;
+        background-color: transparent; /* No background for row labels */
+        border: none;
+        padding-left: 0;
+        text-align: left;
     }
 
     .debug-label {
-        margin-bottom: 3px;
+        font-weight: 600;
+        color: #6b7280; /* Gray label */
+        margin-bottom: 4px; /* Space between label and value */
+        font-size: 0.8rem;
     }
-}
+
+    .debug-value {
+        word-break: break-all; /* Prevent long strings overflow */
+    }
+
+    .debug-value.address, .debug-value.hash {
+        color: #3b82f6;
+        text-decoration: underline;
+        cursor: pointer;
+        font-family: monospace; /* Monospace for addresses/hashes */
+    }
+
+    .verified-box {
+        grid-column: span 3; /* Make verified span 3 cols */
+        text-align: center;
+    }
+
+    /* Remove old debug-item styles */
+    .debug-item {
+        /* These styles are no longer needed */
+        /* display: flex; */
+        /* margin-bottom: 8px; */
+    }

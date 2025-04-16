@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>0x Gasless Swap Demo</title>
+    <link href="https://fonts.cdnfonts.com/css/satoshi" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -57,65 +58,55 @@
                 <button id="execute-swap" class="swap-btn" disabled>Swap Gasless</button>
             </div>
 
-            <div class="debug-panel">
-                <h2>Debug Information</h2>
-                <div id="debug-info">
-                    <div class="debug-item">
-                        <span class="debug-label">Wallet Address:</span>
-                        <span id="wallet-address">Not connected</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Source Chain/Token:</span>
-                        <span id="debug-source">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Destination Chain/Token:</span>
-                        <span id="debug-destination">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Amount (Fiat):</span>
-                        <span id="debug-amount-fiat">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Amount (Token):</span>
-                        <span id="debug-amount-token">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Tx Hash:</span>
-                        <span id="debug-tx-hash">-</span>
-                    </div>
+            <div class="debug-grid">
+                  <div class="debug-box">
+                      <span class="debug-label">Wallet Address:</span>
+                      <span id="wallet-address" class="debug-value address">Not connected</span>
+                  </div>
+                  <div class="debug-box">
+                      <span class="debug-label">Tx Hash:</span>
+                      <span id="debug-tx-hash" class="debug-value hash">-</span>
+                  </div>
+                   <div class="debug-box">
+                       <span class="debug-label">Source:</span>
+                       <span id="debug-source" class="debug-value">-</span>
+                   </div>
+                   <div class="debug-box">
+                       <span class="debug-label">Destination:</span>
+                       <span id="debug-destination" class="debug-value">-</span>
+                   </div>
+                   <div class="debug-box">
+                       <span class="debug-label">Amount (Fiat):</span>
+                       <span id="debug-amount-fiat" class="debug-value">-</span>
+                   </div>
+                   <div class="debug-box">
+                       <span class="debug-label">Amount (Token):</span>
+                       <span id="debug-amount-token" class="debug-value">-</span>
+                   </div>
+              </div>
 
-                    <h3>Balance Tracking</h3>
-                    <div class="debug-item">
-                        <span class="debug-label">Source Token Before:</span>
-                        <span id="debug-source-before">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Source Token After:</span>
-                        <span id="debug-source-after">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Source Token Change:</span>
-                        <span id="debug-source-change">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Gas Token Before:</span>
-                        <span id="debug-gas-before">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Gas Token After:</span>
-                        <span id="debug-gas-after">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Gas Token Change:</span>
-                        <span id="debug-gas-change">-</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Gasless Verified:</span>
-                        <span id="debug-gasless-verified">-</span>
-                    </div>
-                </div>
-            </div>
+              <h4>Balance Tracking</h4>
+              <div class="debug-grid balance-grid">
+                  <div class="debug-box header"></div>
+                  <div class="debug-box header">Before</div>
+                  <div class="debug-box header">After</div>
+                  <div class="debug-box header">Change</div>
+
+                  <div class="debug-box label-col">Source Token</div>
+                  <div class="debug-box"><span id="debug-source-before" class="debug-value">-</span></div>
+                  <div class="debug-box"><span id="debug-source-after" class="debug-value">-</span></div>
+                  <div class="debug-box"><span id="debug-source-change" class="debug-value">-</span></div>
+
+                  <div class="debug-box label-col">Gas Token</div>
+                  <div class="debug-box"><span id="debug-gas-before" class="debug-value">-</span></div>
+                  <div class="debug-box"><span id="debug-gas-after" class="debug-value">-</span></div>
+                  <div class="debug-box"><span id="debug-gas-change" class="debug-value">-</span></div>
+
+                  <div class="debug-box label-col">Gasless Verified?</div>
+                  <div class="debug-box verified-box" colspan="3">
+                      <span id="debug-gasless-verified" class="debug-value">-</span>
+                  </div>
+              </div>
         </section>
 
         <section class="event-log">

@@ -167,16 +167,34 @@ const config = {
 
   // Default values
   DEFAULT_RECIPIENT_ADDRESS: "0x7eac9f0Dcf81Ed413647D2B1c9b02620DA298A93",
-  DEFAULT_AMOUNT: "5.00",
+  DEFAULT_AMOUNT: "1.00",
   DEFAULT_GAS_LIMIT: 1_500_000,
   DEFAULT_SOURCE_CHAIN: "BASE",
   DEFAULT_SOURCE_TOKEN: "USDC",
   DEFAULT_DESTINATION_CHAIN: "BASE",  // Same chain for gasless swaps
-  DEFAULT_DESTINATION_TOKEN: "DAI",
+  DEFAULT_DESTINATION_TOKEN: "EURC",
 
   // Proxy server URL for API requests
   PROXY_SERVER_URL: "/api",
 
+  // Minimal ERC20 ABI for balance/decimals
+  ERC20_ABI: [
+    {
+        "constant": true,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "type": "function"
+    }
+  ],
+  
   // Utility functions
   getChainById: function(chainId) {
     for (const chain in this.CHAINS) {

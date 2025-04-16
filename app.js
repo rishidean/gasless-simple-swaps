@@ -226,12 +226,14 @@ function populateTokenDropdown(dropdownId, chainName) {
 }
 
 // Update balances for current account and selected tokens
+// Update balances for current account and selected tokens (BEFORE swap)
 async function updateBalances() {
     if (!appState.web3 || !appState.currentAccount) {
         logEvent('Cannot update balances: Wallet not connected', 'warning');
         return;
     }
 
+    logEvent('Fetching initial balances...', 'info');
     try {
         const sourceChainId = document.getElementById('source-chain').value;
         const sourceChain = config.getChainById(sourceChainId);
@@ -242,142 +244,153 @@ async function updateBalances() {
             return;
         }
 
-        // Get source token
-        const sourceTokenSymbol = document.getElementById('source-token').value;
-        const sourceTokenAddress = config.getTokenAddressForChain(sourceTokenSymbol, chainName);
-
-        if (!sourceTokenAddress) {
-            logEvent(`Cannot update balances: Token ${sourceTokenSymbol} not available on ${chainName}`, 'warning');
-            return;
-        }
-
         // Check if current network matches selected chain
         const currentNetwork = await appState.web3.eth.getChainId();
         if (currentNetwork !== sourceChain.id) {
             logEvent(`Please switch your wallet to the ${sourceChain.name} network (ID: ${sourceChain.id})`, 'warning');
+            // Clear balances if network doesn't match
+            appState.balances.gasTokenBefore = null;
+            appState.balances.sourceTokenBefore = null;
+            document.getElementById('debug-source-before').textContent = '-';
+            document.getElementById('debug-gas-before').textContent = '-';
+            return;
+        }
+
+        // Get source token
+        const sourceTokenSymbol = document.getElementById('source-token').value;
+        const sourceTokenAddress = config.getTokenAddressForChain(sourceTokenSymbol, chainName);
+        const sourceTokenInfo = config.TOKENS[sourceTokenSymbol];
+
+        if (!sourceTokenAddress || !sourceTokenInfo) {
+            logEvent(`Cannot update balances: Token ${sourceTokenSymbol} not available on ${chainName}`, 'warning');
+            appState.balances.sourceTokenBefore = null;
+            document.getElementById('debug-source-before').textContent = '-';
             return;
         }
 
         // Get gas token (native) balance
-        const gasBalance = await appState.web3.eth.getBalance(appState.currentAccount);
-        appState.balances.gasTokenBefore = appState.web3.utils.fromWei(gasBalance, 'ether');
+        const gasBalanceWei = await appState.web3.eth.getBalance(appState.currentAccount);
+        appState.balances.gasTokenBefore = parseFloat(appState.web3.utils.fromWei(gasBalanceWei, 'ether'));
+        document.getElementById('debug-gas-before').textContent =
+            `${appState.balances.gasTokenBefore.toFixed(6)} ${sourceChain.nativeToken.symbol}`;
 
         // Get source token balance
-        const tokenContract = new appState.web3.eth.Contract([
-            {
-                "constant": true,
-                "inputs": [{"name": "_owner", "type": "address"}],
-                "name": "balanceOf",
-                "outputs": [{"name": "balance", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "decimals",
-                "outputs": [{"name": "", "type": "uint8"}],
-                "type": "function"
-            }
-        ], sourceTokenAddress);
-
-        const tokenDecimals = await tokenContract.methods.decimals().call();
-        const tokenBalance = await tokenContract.methods.balanceOf(appState.currentAccount).call();
-
-        // Calculate token balance with proper decimals
-        appState.balances.sourceTokenBefore = tokenBalance / Math.pow(10, tokenDecimals);
-
-        // Update UI with balances
-        document.getElementById('debug-source-before').textContent = 
-            `${appState.balances.sourceTokenBefore} ${sourceTokenSymbol}`;
-        document.getElementById('debug-gas-before').textContent = 
-            `${appState.balances.gasTokenBefore} ${sourceChain.nativeToken.symbol}`;
+        const tokenContract = new appState.web3.eth.Contract(config.ERC20_ABI, sourceTokenAddress);
+        const tokenBalanceRaw = await tokenContract.methods.balanceOf(appState.currentAccount).call();
+        appState.balances.sourceTokenBefore = parseFloat(tokenBalanceRaw) / Math.pow(10, sourceTokenInfo.decimals);
+        document.getElementById('debug-source-before').textContent =
+            `${appState.balances.sourceTokenBefore.toFixed(6)} ${sourceTokenSymbol}`;
 
         logEvent(`Balances updated for account ${appState.currentAccount}`, 'info');
+
+        // Clear 'After' and 'Change' fields whenever 'Before' is updated
+        document.getElementById('debug-source-after').textContent = '-';
+        document.getElementById('debug-gas-after').textContent = '-';
+        document.getElementById('debug-source-change').textContent = '-';
+        document.getElementById('debug-gas-change').textContent = '-';
+        document.getElementById('debug-gasless-verified').textContent = '-';
+        document.getElementById('debug-gasless-verified').style.color = 'inherit';
+
+
     } catch (error) {
         logEvent(`Error updating balances: ${error.message}`, 'error');
         console.error('Balance update error:', error);
+        // Clear balance fields on error
+        document.getElementById('debug-source-before').textContent = 'Error';
+        document.getElementById('debug-gas-before').textContent = 'Error';
     }
 }
 
+
 // Update balances after transaction
+// Update balances AFTER successful swap
 async function updateBalancesAfterSwap() {
     if (!appState.web3 || !appState.currentAccount) {
-        return;
+        return; // Should not happen if called after successful swap
     }
 
+    logEvent('Fetching post-swap balances...', 'info');
     try {
         const sourceChainId = document.getElementById('source-chain').value;
         const sourceChain = config.getChainById(sourceChainId);
         const chainName = Object.keys(config.CHAINS).find(key => config.CHAINS[key].id === Number(sourceChainId));
 
         if (!sourceChain || !chainName) {
+            logEvent('Cannot update post-swap balances: Invalid chain', 'warning');
             return;
         }
 
-        // Get source token
+        // Get source token info
         const sourceTokenSymbol = document.getElementById('source-token').value;
         const sourceTokenAddress = config.getTokenAddressForChain(sourceTokenSymbol, chainName);
+        const sourceTokenInfo = config.TOKENS[sourceTokenSymbol];
 
-        if (!sourceTokenAddress) {
+        if (!sourceTokenAddress || !sourceTokenInfo) {
+             logEvent(`Cannot update post-swap balances: Token ${sourceTokenSymbol} not found`, 'warning');
             return;
         }
 
-        // Get gas token (native) balance
-        const gasBalance = await appState.web3.eth.getBalance(appState.currentAccount);
-        appState.balances.gasTokenAfter = appState.web3.utils.fromWei(gasBalance, 'ether');
+        // --- Get POST-SWAP Balances ---
 
-        // Get source token balance
-        const tokenContract = new appState.web3.eth.Contract([
-            {
-                "constant": true,
-                "inputs": [{"name": "_owner", "type": "address"}],
-                "name": "balanceOf",
-                "outputs": [{"name": "balance", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "decimals",
-                "outputs": [{"name": "", "type": "uint8"}],
-                "type": "function"
+        // Get gas token (native) balance AFTER
+        const gasBalanceWeiAfter = await appState.web3.eth.getBalance(appState.currentAccount);
+        appState.balances.gasTokenAfter = parseFloat(appState.web3.utils.fromWei(gasBalanceWeiAfter, 'ether'));
+        document.getElementById('debug-gas-after').textContent =
+            `${appState.balances.gasTokenAfter.toFixed(6)} ${sourceChain.nativeToken.symbol}`;
+
+        // Get source token balance AFTER
+        const tokenContract = new appState.web3.eth.Contract(config.ERC20_ABI, sourceTokenAddress);
+        const tokenBalanceRawAfter = await tokenContract.methods.balanceOf(appState.currentAccount).call();
+        appState.balances.sourceTokenAfter = parseFloat(tokenBalanceRawAfter) / Math.pow(10, sourceTokenInfo.decimals);
+        document.getElementById('debug-source-after').textContent =
+            `${appState.balances.sourceTokenAfter.toFixed(6)} ${sourceTokenSymbol}`;
+
+        // --- Calculate and Display Changes ---
+
+        // Check if 'Before' balances exist before calculating change
+        if (appState.balances.sourceTokenBefore !== null && appState.balances.gasTokenBefore !== null) {
+            // Calculate source token change
+            const sourceTokenChange = appState.balances.sourceTokenAfter - appState.balances.sourceTokenBefore;
+            document.getElementById('debug-source-change').textContent =
+                `${sourceTokenChange.toFixed(6)} ${sourceTokenSymbol}`;
+            document.getElementById('debug-source-change').style.color = sourceTokenChange < 0 ? 'var(--error-color)' : 'var(--success-color)';
+
+
+            // Calculate gas token change
+            const gasTokenChange = appState.balances.gasTokenAfter - appState.balances.gasTokenBefore;
+            document.getElementById('debug-gas-change').textContent =
+                `${gasTokenChange.toFixed(6)} ${sourceChain.nativeToken.symbol}`;
+
+            // Verify if swap was gasless (allow for tiny dust amounts)
+            const gasThreshold = 1e-8; // Very small threshold
+            if (Math.abs(gasTokenChange) < gasThreshold) {
+                document.getElementById('debug-gasless-verified').textContent = 'Yes ✅';
+                document.getElementById('debug-gasless-verified').style.color = 'var(--success-color)';
+                logEvent('Gasless swap verified! Negligible change in gas token balance.', 'success');
+                document.getElementById('debug-gas-change').style.color = 'var(--success-color)';
+
+            } else {
+                document.getElementById('debug-gasless-verified').textContent = 'No ❌';
+                document.getElementById('debug-gasless-verified').style.color = 'var(--error-color)';
+                logEvent(`Swap used gas: ${gasTokenChange.toFixed(8)} ${sourceChain.nativeToken.symbol}`, 'warning');
+                 document.getElementById('debug-gas-change').style.color = 'var(--error-color)';
             }
-        ], sourceTokenAddress);
-
-        const tokenDecimals = await tokenContract.methods.decimals().call();
-        const tokenBalance = await tokenContract.methods.balanceOf(appState.currentAccount).call();
-
-        // Calculate token balance with proper decimals
-        appState.balances.sourceTokenAfter = tokenBalance / Math.pow(10, tokenDecimals);
-
-        // Calculate changes
-        const sourceTokenChange = appState.balances.sourceTokenAfter - appState.balances.sourceTokenBefore;
-        const gasTokenChange = appState.balances.gasTokenAfter - appState.balances.gasTokenBefore;
-
-        // Update UI with balances
-        document.getElementById('debug-source-after').textContent = 
-            `${appState.balances.sourceTokenAfter} ${sourceTokenSymbol}`;
-        document.getElementById('debug-gas-after').textContent = 
-            `${appState.balances.gasTokenAfter} ${sourceChain.nativeToken.symbol}`;
-        document.getElementById('debug-source-change').textContent = 
-            `${sourceTokenChange.toFixed(6)} ${sourceTokenSymbol}`;
-        document.getElementById('debug-gas-change').textContent = 
-            `${gasTokenChange.toFixed(6)} ${sourceChain.nativeToken.symbol}`;
-
-        // Verify if swap was gasless
-        const gasTokenChangeRounded = Math.abs(parseFloat(gasTokenChange.toFixed(8)));
-        if (gasTokenChangeRounded === 0) {
-            document.getElementById('debug-gasless-verified').textContent = 'Yes ✅';
-            document.getElementById('debug-gasless-verified').style.color = 'var(--success-color)';
-            logEvent('Gasless swap verified! No change in gas token balance.', 'success');
         } else {
-            document.getElementById('debug-gasless-verified').textContent = 'No ❌';
-            document.getElementById('debug-gasless-verified').style.color = 'var(--error-color)';
-            logEvent(`Swap used gas: ${gasTokenChange.toFixed(6)} ${sourceChain.nativeToken.symbol}`, 'warning');
+             logEvent('Could not calculate changes: Missing pre-swap balances.', 'warning');
+             document.getElementById('debug-source-change').textContent = 'N/A';
+             document.getElementById('debug-gas-change').textContent = 'N/A';
+             document.getElementById('debug-gasless-verified').textContent = 'N/A';
         }
+
     } catch (error) {
         logEvent(`Error updating post-swap balances: ${error.message}`, 'error');
         console.error('Post-swap balance update error:', error);
+        // Indicate error in UI
+        document.getElementById('debug-source-after').textContent = 'Error';
+        document.getElementById('debug-gas-after').textContent = 'Error';
+        document.getElementById('debug-source-change').textContent = 'Error';
+        document.getElementById('debug-gas-change').textContent = 'Error';
+        document.getElementById('debug-gasless-verified').textContent = 'Error';
     }
 }
 
@@ -463,152 +476,155 @@ function clearLog() {
 }
 
 // Execute the gasless swap
+// Execute the gasless swap
 async function executeSwap() {
+    logEvent('Initiating swap process...', 'info');
+    updateStatus('Starting swap...');
+    document.getElementById('execute-swap').disabled = true; // Disable button early
+
+    // --- Pre-checks ---
     if (!appState.web3 || !appState.currentAccount) {
         logEvent('Cannot execute swap: Wallet not connected', 'error');
-        updateStatus('Please connect your wallet to continue.');
+        updateStatus('Error: Please connect your wallet.');
+        document.getElementById('execute-swap').disabled = false; // Re-enable button
         return;
     }
 
     try {
-        // Gather swap parameters
+        // --- Gather Swap Parameters ---
         const sourceChainId = document.getElementById('source-chain').value;
         const sourceChain = config.getChainById(sourceChainId);
         const chainName = Object.keys(config.CHAINS).find(key => config.CHAINS[key].id === Number(sourceChainId));
 
         if (!sourceChain || !chainName) {
-            throw new Error('Invalid source chain');
+            throw new Error('Invalid source chain selected.');
         }
 
-        // Check if current network matches selected chain
+        // Check network match
         const currentNetwork = await appState.web3.eth.getChainId();
         if (currentNetwork !== sourceChain.id) {
-            throw new Error(`Please switch your wallet to the ${sourceChain.name} network (ID: ${sourceChain.id})`);
+            throw new Error(`Network mismatch: Please switch your wallet to ${sourceChain.name} (ID: ${sourceChain.id}).`);
         }
 
-        // Get source and destination tokens
         const sourceTokenSymbol = document.getElementById('source-token').value;
         const destinationTokenSymbol = document.getElementById('destination-token').value;
-
-        // Get token addresses
         const sourceTokenAddress = config.getTokenAddressForChain(sourceTokenSymbol, chainName);
         const destTokenAddress = config.getTokenAddressForChain(destinationTokenSymbol, chainName);
-
-        if (!sourceTokenAddress || !destTokenAddress) {
-            throw new Error('Invalid token selection');
-        }
-
-        // Get amount in USD
-        const amountUsd = parseFloat(document.getElementById('amount').value);
-        if (isNaN(amountUsd) || amountUsd <= 0) {
-            throw new Error('Invalid amount');
-        }
-
-        // Get token decimals and calculate token amount
         const sourceTokenInfo = config.TOKENS[sourceTokenSymbol];
-        const sourceTokenDecimals = sourceTokenInfo.decimals;
-        const sellAmount = Math.floor(amountUsd * Math.pow(10, sourceTokenDecimals));
 
-        // Calculate a buffer for gas fees (approximately 10% more)
-        const totalAmount = Math.floor(sellAmount * 1.1); // Add 10% buffer for gas fees
+        if (!sourceTokenAddress || !destTokenAddress || !sourceTokenInfo) {
+            throw new Error('Invalid token selection for the chosen chain.');
+        }
 
-        // Get recipient address (default to current account if empty)
+        const amountInput = document.getElementById('amount').value; // Use the raw input for now
+        // const amountUsd = parseFloat(document.getElementById('amount').value);
+        // if (isNaN(amountUsd) || amountUsd <= 0) {
+        //     throw new Error('Invalid amount entered.');
+        // }
+        // const sellAmount = Math.floor(amountUsd * Math.pow(10, sourceTokenInfo.decimals));
+        // NOTE: The 0x API actually expects sellAmount in the token's smallest unit (atomic), not USD.
+        // We need to adjust this logic later if amount is meant to be USD.
+        // For now, assuming the input 'amount' is the token amount to sell.
+        const amountToSell = parseFloat(amountInput);
+         if (isNaN(amountToSell) || amountToSell <= 0) {
+             throw new Error('Invalid amount entered.');
+         }
+        const sellAmountAtomic = BigInt(Math.floor(amountToSell * Math.pow(10, sourceTokenInfo.decimals))).toString();
+
+
         let recipientAddress = document.getElementById('recipient-address').value.trim();
         if (!recipientAddress) {
-            recipientAddress = appState.currentAccount;
-            document.getElementById('recipient-address').value = recipientAddress;
+            recipientAddress = appState.currentAccount; // Default to self
+            document.getElementById('recipient-address').value = recipientAddress; // Update UI
         }
-
-        // Validate recipient address
         if (!appState.web3.utils.isAddress(recipientAddress)) {
-            throw new Error('Invalid recipient address');
+            throw new Error('Invalid recipient address format.');
         }
 
-        // Update UI
-        updateStatus('Initiating gasless swap...');
-        logEvent(`Starting gasless swap process for ${amountUsd} USD worth of ${sourceTokenSymbol} to ${destinationTokenSymbol}`, 'info');
-        document.getElementById('execute-swap').disabled = true;
+        logEvent(`Attempting to swap ${amountToSell} ${sourceTokenSymbol} to ${destinationTokenSymbol} on ${chainName}`, 'info');
 
-        // STEP 1: Get the price (initial estimate)
-        updateStatus('Step 1/4: Getting price estimate...');
-        const priceQuote = await getPriceQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
-        logEvent(`Received price estimate. Estimated output: ${priceQuote.buyAmount} ${destinationTokenSymbol}`, 'info');
+        // --- Step 1 & 2: Get Firm Quote ---
+        // NOTE: The Price endpoint isn't strictly needed for Gasless v2 as Quote includes fees.
+        // We go directly to Quote.
+        updateStatus('Step 1/3: Getting swap quote...');
+        logEvent(`Requesting quote to sell ${sellAmountAtomic} ${sourceTokenSymbol} wei...`, 'info');
+        const quoteResponse = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, sellAmountAtomic, appState.currentAccount);
 
-        // STEP 2: Get the firm quote
-        updateStatus('Step 2/4: Getting firm quote for the swap...');
-        const quoteResponse = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
+        // !!! IMPORTANT CHECK (Addresses Q1) !!!
+        if (!quoteResponse || !quoteResponse.trade || !quoteResponse.trade.eip712) {
+             // Check if a specific error message exists, otherwise use a generic one
+            const quoteError = quoteResponse?.validationErrors?.[0]?.description || 'Quote invalid or unavailable (e.g., insufficient liquidity).';
+            throw new Error(`Failed to get valid quote: ${quoteError}`);
+        }
+        logEvent(`Quote received: Sell ${quoteResponse.sellAmount / Math.pow(10, sourceTokenInfo.decimals)} ${sourceTokenSymbol}, Buy approx. ${quoteResponse.buyAmount / Math.pow(10, config.TOKENS[destinationTokenSymbol]?.decimals || 18)} ${destinationTokenSymbol}`, 'success');
+        console.log("Full Quote Response:", quoteResponse); // Log for deeper debugging
 
-        // Store quote data for later
+        // Store quote data
         appState.swapProcess.quoteData = quoteResponse;
-        logEvent(`Firm quote received. Will sell ${quoteResponse.sellAmount} ${sourceTokenSymbol} to buy ${quoteResponse.buyAmount} ${destinationTokenSymbol}`, 'success');
 
-        
-        // STEP 3: Check for allowance and get signature if needed
-        updateStatus('Step 3/4: Checking token approval requirements...');
-
-        // Step 3: Get signatures as needed
-        updateStatus('Step 3/4: Obtaining necessary signatures...');
-
+        // --- Step 2: Get Signatures ---
+        updateStatus('Step 2/3: Obtaining signatures...');
         let tradeSignature = null;
         let approvalSignature = null;
 
-        // Get trade signature - this is always needed
+        // Get TRADE signature (always required for Gasless v2)
         if (quoteResponse.trade && quoteResponse.trade.eip712) {
-            logEvent('Requesting signature for the trade. Please check your wallet...', 'info');
-
-            // The EIP712 data is already formatted in the quote response
+            logEvent('Requesting TRADE signature (EIP-712)... Please check wallet.', 'info');
             const tradeTypedData = quoteResponse.trade.eip712;
-
             try {
                 tradeSignature = await window.ethereum.request({
                     method: 'eth_signTypedData_v4',
                     params: [appState.currentAccount, JSON.stringify(tradeTypedData)]
                 });
-
-                logEvent('Trade signature obtained successfully.', 'success');
-            } catch (error) {
-                throw new Error(`Failed to sign trade: ${error.message}`);
+                logEvent('Trade signature obtained.', 'success');
+            } catch (signError) {
+                console.error("Trade signing error:", signError);
+                throw new Error(`User rejected or failed trade signature: ${signError.message}`);
             }
         } else {
-            throw new Error('Trade EIP712 data not found in quote response');
+            // Should not happen if quote validation passed, but good safety check
+            throw new Error('Critical error: Valid quote missing required trade data.');
         }
 
-        // Get approval signature if needed
+        // Get APPROVAL signature (only if needed)
         if (quoteResponse.approval && quoteResponse.approval.eip712) {
-            logEvent('Token approval required. Please sign the approval in your wallet.', 'info');
-
-            // The EIP712 data is already formatted in the quote response
+            logEvent('Token APPROVAL required. Requesting signature... Please check wallet.', 'info');
             const approvalTypedData = quoteResponse.approval.eip712;
-
-            try {
+             try {
                 approvalSignature = await window.ethereum.request({
                     method: 'eth_signTypedData_v4',
                     params: [appState.currentAccount, JSON.stringify(approvalTypedData)]
                 });
-
-                logEvent('Approval signature obtained successfully.', 'success');
-            } catch (error) {
-                throw new Error(`Failed to sign approval: ${error.message}`);
+                logEvent('Approval signature obtained.', 'success');
+            } catch (signError) {
+                console.error("Approval signing error:", signError);
+                throw new Error(`User rejected or failed approval signature: ${signError.message}`);
             }
         } else {
-            logEvent('No approval signature required.', 'info');
+            logEvent('No separate token approval signature required.', 'info');
         }
 
-        // Step 4: Execute the swap with signatures
-        updateStatus('Step 4/4: Executing the swap...');
-        const swapResult = await executeSwapTransaction(
-            sourceChainId, 
-            quoteResponse, 
-            tradeSignature, 
-            approvalSignature
+        // --- Step 3: Execute Swap Transaction ---
+        updateStatus('Step 3/3: Submitting swap transaction...');
+        await executeSwapTransaction(
+            sourceChainId,
+            quoteResponse,
+            tradeSignature,
+            approvalSignature // Pass null if not obtained
         );
+
+        // Note: updateBalancesAfterSwap() and button re-enabling happens
+        // within the monitorSwapStatus function upon success/failure/timeout.
+
     } catch (error) {
-        logEvent(`Swap error: ${error.message}`, 'error');
-        updateStatus(`Swap failed: ${error.message}`);
-        console.error('Swap execution error:', error);
-        document.getElementById('execute-swap').disabled = false;
+        // Catch errors from any step above
+        logEvent(`Swap process failed: ${error.message}`, 'error');
+        updateStatus(`Error: ${error.message}`);
+        console.error('Swap execution error details:', error);
+        document.getElementById('execute-swap').disabled = false; // Re-enable button on failure
     }
 }
+
 // STEP 1: Get a price quote with gas included
 async function getPriceQuote(chainId, sellToken, buyToken, sellAmount, takerAddress) {
     logEvent('Getting price quote with gas fee included...', 'info');
@@ -853,8 +869,9 @@ async function executeSwapTransaction(chainId, quoteResponse, tradeSignature, ap
 
             // Start monitoring the transaction status separately
             // This ensures we don't block the function return
+            const currentChainId = Number(chainId); // Ensure it's a number from the function parameter
             setTimeout(() => {
-                monitorSwapStatus(txHash)
+                monitorSwapStatus(txHash, currentChainId)
                     .catch(err => {
                         console.error('Error in status monitoring:', err);
                         logEvent(`Monitoring error: ${err.message}`, 'error');
@@ -893,9 +910,10 @@ function splitSignature(signature) {
 
 // Monitor the status of the swap transaction
 // Monitor the status of the swap transaction
-async function monitorSwapStatus(tradeHash) {
+async function monitorSwapStatus(tradeHash, chainId) {
     logEvent(`Monitoring transaction status for hash: ${tradeHash}`, 'info');
     updateStatus('Monitoring transaction status...');
+    console.log(`[DEBUG] monitorSwapStatus: Entered function - chainId type: ${typeof chainId}, value: ${chainId}`); // <<< ADD THIS LOG
 
     try {
         let attempts = 0;
@@ -909,6 +927,9 @@ async function monitorSwapStatus(tradeHash) {
             try {
                 const url = `${config.PROXY_SERVER_URL}/gasless/status/${tradeHash}`;
                 const response = await axios.get(url, {
+                    params: {
+                        chainId: chainId
+                    },
                     headers: {
                         '0x-api-key': config.ZERO_X_API.API_KEY,
                         '0x-version': config.ZERO_X_API.API_VERSION
