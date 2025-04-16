@@ -463,7 +463,6 @@ function clearLog() {
 }
 
 // Execute the gasless swap
-// Execute the gasless swap
 async function executeSwap() {
     if (!appState.web3 || !appState.currentAccount) {
         logEvent('Cannot execute swap: Wallet not connected', 'error');
@@ -531,58 +530,78 @@ async function executeSwap() {
         document.getElementById('execute-swap').disabled = true;
 
         // STEP 1: Get the price (initial estimate)
-        updateStatus('Step 1/5: Getting price estimate...');
+        updateStatus('Step 1/4: Getting price estimate...');
         const priceQuote = await getPriceQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
         logEvent(`Received price estimate. Estimated output: ${priceQuote.buyAmount} ${destinationTokenSymbol}`, 'info');
 
         // STEP 2: Get the firm quote
-        updateStatus('Step 2/5: Getting firm quote for the swap...');
-        const firmQuote = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
+        updateStatus('Step 2/4: Getting firm quote for the swap...');
+        const quoteResponse = await getFirmQuote(sourceChainId, sourceTokenAddress, destTokenAddress, totalAmount, appState.currentAccount);
 
         // Store quote data for later
-        appState.swapProcess.quoteData = firmQuote;
-        logEvent(`Firm quote received. Will sell ${firmQuote.sellAmount} ${sourceTokenSymbol} to buy ${firmQuote.buyAmount} ${destinationTokenSymbol}`, 'success');
+        appState.swapProcess.quoteData = quoteResponse;
+        logEvent(`Firm quote received. Will sell ${quoteResponse.sellAmount} ${sourceTokenSymbol} to buy ${quoteResponse.buyAmount} ${destinationTokenSymbol}`, 'success');
 
+        
         // STEP 3: Check for allowance and get signature if needed
-        updateStatus('Step 3/5: Checking token approval requirements...');
+        updateStatus('Step 3/4: Checking token approval requirements...');
 
-        if (firmQuote.approval && firmQuote.approval.signatureRequired) {
+        // Step 3: Get signatures as needed
+        updateStatus('Step 3/4: Obtaining necessary signatures...');
+
+        let tradeSignature = null;
+        let approvalSignature = null;
+
+        // Get trade signature - this is always needed
+        if (quoteResponse.trade && quoteResponse.trade.eip712) {
+            logEvent('Requesting signature for the trade. Please check your wallet...', 'info');
+
+            // The EIP712 data is already formatted in the quote response
+            const tradeTypedData = quoteResponse.trade.eip712;
+
+            try {
+                tradeSignature = await window.ethereum.request({
+                    method: 'eth_signTypedData_v4',
+                    params: [appState.currentAccount, JSON.stringify(tradeTypedData)]
+                });
+
+                logEvent('Trade signature obtained successfully.', 'success');
+            } catch (error) {
+                throw new Error(`Failed to sign trade: ${error.message}`);
+            }
+        } else {
+            throw new Error('Trade EIP712 data not found in quote response');
+        }
+
+        // Get approval signature if needed
+        if (quoteResponse.approval && quoteResponse.approval.eip712) {
             logEvent('Token approval required. Please sign the approval in your wallet.', 'info');
 
-            // Get EIP-3009 authorization signature
-            const signature = await getEIP3009Authorization(
-                sourceTokenAddress,
-                firmQuote.approval.spender,
-                totalAmount,
-                sourceChainId
-            );
+            // The EIP712 data is already formatted in the quote response
+            const approvalTypedData = quoteResponse.approval.eip712;
 
-            appState.swapProcess.signature = signature;
-            logEvent('Approval signature obtained successfully.', 'success');
+            try {
+                approvalSignature = await window.ethereum.request({
+                    method: 'eth_signTypedData_v4',
+                    params: [appState.currentAccount, JSON.stringify(approvalTypedData)]
+                });
+
+                logEvent('Approval signature obtained successfully.', 'success');
+            } catch (error) {
+                throw new Error(`Failed to sign approval: ${error.message}`);
+            }
         } else {
-            logEvent('No additional token approval needed.', 'info');
+            logEvent('No approval signature required.', 'info');
         }
 
-        // STEP 4: Execute the swap
-        updateStatus('Step 4/5: Executing the swap...');
-        const swapResult = await executeSwapTransaction(sourceChainId, firmQuote, appState.swapProcess.signature);
-
-        // Handle swap result
-        if (swapResult && swapResult.hash) {
-            appState.transaction.hash = swapResult.hash;
-            document.getElementById('debug-tx-hash').textContent = swapResult.hash;
-            document.getElementById('debug-tx-hash').onclick = () => {
-                window.open(`${sourceChain.explorerUrl}/tx/${swapResult.hash}`, '_blank');
-            };
-
-            updateStatus('Swap submitted successfully. Waiting for confirmation...');
-            logEvent(`Swap transaction submitted. Hash: ${swapResult.hash}`, 'success');
-
-            // Wait for status updates
-            await monitorSwapStatus(swapResult.hash);
-        } else {
-            throw new Error('Failed to submit swap transaction');
-        }
+        // Step 4: Execute the swap with signatures
+        updateStatus('Step 4/4: Executing the swap...');
+        const swapResult = await executeSwapTransaction(
+            sourceChainId, 
+            quoteResponse, 
+            tradeSignature, 
+            approvalSignature
+        );
     } catch (error) {
         logEvent(`Swap error: ${error.message}`, 'error');
         updateStatus(`Swap failed: ${error.message}`);
@@ -622,24 +641,18 @@ async function getFirmQuote(chainId, sellToken, buyToken, sellAmount, takerAddre
     logEvent('Getting firm quote for swap...', 'info');
 
     try {
-        const url = `${config.PROXY_SERVER_URL}/gasless/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
+        const url = `${config.ZERO_X_API.BASE_URL}/quote?chainId=${chainId}&sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}&taker=${takerAddress}`;
 
         const response = await axios.get(url, {
             headers: {
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': config.ZERO_X_API.API_VERSION
+                '0x-version': 'v2'
             }
         });
 
         if (response.data) {
             logEvent(`Firm quote received. Will sell ${response.data.sellAmount} tokens to buy ${response.data.buyAmount} tokens.`, 'success');
             console.log('Firm quote:', response.data);
-
-            // Store allowance target
-            if (response.data.allowanceTarget) {
-                appState.swapProcess.allowanceTarget = response.data.allowanceTarget;
-            }
-
             return response.data;
         } else {
             throw new Error('No data received from firm quote endpoint');
@@ -766,33 +779,53 @@ async function getTokenInfo(tokenAddress) {
     }
 }
 
-// STEP 3: Execute the swap transaction
-async function executeSwapTransaction(chainId, quote, signature = null) {
+// STEP 4: Execute the swap transaction
+// Execute the swap transaction with signatures
+async function executeSwapTransaction(chainId, quoteResponse, tradeSignature, approvalSignature = null) {
     logEvent('Executing swap transaction...', 'info');
 
     try {
-        // Prepare the swap transaction payload
+        // Parse the trade signature
+        const splitTradeSignature = splitSignature(tradeSignature);
+
+        // Prepare the request payload
         const payload = {
-            chainId: chainId,
             trade: {
-                to: quote.to,
-                data: quote.data,
-                value: "0",
-                gasless: true
+                type: quoteResponse.trade.type,
+                eip712: quoteResponse.trade.eip712,
+                signature: {
+                    v: splitTradeSignature.v,
+                    r: splitTradeSignature.r,
+                    s: splitTradeSignature.s,
+                    signatureType: 2  // EIP712 signature type
+                }
             }
         };
 
-        // Add signature if provided
-        if (signature) {
-            payload.trade.signature = signature;
+        // Add approval if needed
+        if (approvalSignature && quoteResponse.approval) {
+            const splitApprovalSignature = splitSignature(approvalSignature);
+
+            payload.approval = {
+                type: quoteResponse.approval.type,
+                eip712: quoteResponse.approval.eip712,
+                signature: {
+                    v: splitApprovalSignature.v,
+                    r: splitApprovalSignature.r,
+                    s: splitApprovalSignature.s,
+                    signatureType: 2  // EIP712 signature type
+                }
+            };
         }
 
+        console.log('Submit payload:', JSON.stringify(payload, null, 2));
+
         // Send the swap request
-        const response = await axios.post(`${config.PROXY_SERVER_URL}/gasless/submit`, payload, {
+        const response = await axios.post(`${config.ZERO_X_API.BASE_URL}/submit`, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                '0x-version': 'v2'  // Add the version header as required by the API
+                '0x-version': 'v2'
             }
         });
 
@@ -804,8 +837,28 @@ async function executeSwapTransaction(chainId, quote, signature = null) {
         }
     } catch (error) {
         console.error('Swap execution error:', error);
+        console.error('Error response data:', error.response?.data);
         throw new Error(`Failed to execute swap: ${error.response?.data?.message || error.message}`);
     }
+}
+
+// Helper function to split signature into v, r, s components
+function splitSignature(signature) {
+    // Remove the '0x' prefix if present
+    const signatureWithoutPrefix = signature.startsWith('0x') ? signature.slice(2) : signature;
+
+    // Extract r, s, v
+    const r = '0x' + signatureWithoutPrefix.slice(0, 64);
+    const s = '0x' + signatureWithoutPrefix.slice(64, 128);
+
+    // v is the last byte, either 0, 1, 27, or 28
+    let v = parseInt(signatureWithoutPrefix.slice(128, 130), 16);
+    // Adjust v if needed (some wallets return 0/1, we need 27/28)
+    if (v < 27) {
+        v += 27;
+    }
+
+    return { r, s, v };
 }
 
 // Monitor the status of the swap transaction

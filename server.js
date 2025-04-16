@@ -82,7 +82,7 @@ app.post('/api/gasless/submit', async (req, res) => {
         const response = await axios.post(config.ZERO_X_API.SUBMIT_URL, req.body, {
             headers: {
                 '0x-api-key': config.ZERO_X_API.API_KEY,
-                'Content-Type': 'application/json'
+                '0x-version': config.ZERO_X_API.API_VERSION
             }
         });
         res.json(response.data);
@@ -100,7 +100,8 @@ app.get('/api/gasless/status/:tradeHash', async (req, res) => {
         const url = `${config.ZERO_X_API.STATUS_URL}/${req.params.tradeHash}`;
         const response = await axios.get(url, {
             headers: {
-                '0x-api-key': config.ZERO_X_API.API_KEY
+                '0x-api-key': config.ZERO_X_API.API_KEY,
+                '0x-version': config.ZERO_X_API.API_VERSION
             }
         });
         res.json(response.data);
